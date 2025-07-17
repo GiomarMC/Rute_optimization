@@ -1,0 +1,13 @@
+# Ignorar archivos de caché generados por osmnx
+*.osm.cache
+cache/
+
+# Permitir otros archivos generados
+!grafo_paucarpata.graphml
+!datos_extra.json
+!grafo_paucarpata.png
+
+# Ignorar otros archivos temporales comunes
+*.pyc
+__pycache__/
+.DS_Store
