@@ -88,6 +88,19 @@ definir_nodo(G, tachos_este[0], ax, 'orange', 5, 'Tacho Este')
 for nodo in tachos_este[1:]:
     definir_nodo(G, nodo, ax, 'orange', 5, None)
 
+nodos_ocupados = set(tachos_oeste + tachos_este + [nodo_centro, nodo_vertedero])
+nodos_disponibles = [n for n in G.nodes if n not in nodos_ocupados]
+
+num_gasolineras = 30
+puntos_gasolineras = random.sample(
+    nodos_disponibles,
+    min(num_gasolineras, len(nodos_disponibles))
+)
+
+definir_nodo(G, puntos_gasolineras[0], ax, 'purple', 20, 'Gasolinera')
+for nodo in puntos_gasolineras[1:]:
+    definir_nodo(G, nodo, ax, 'purple', 20)
+
 ax.legend()
 plt.savefig('grafo_paucarpata.png', dpi=500, bbox_inches='tight')
 plt.show()
@@ -99,6 +112,7 @@ datos_extra = {
     "nodo_vertedero": nodo_vertedero,
     "tachos_oeste": tachos_oeste,
     "tachos_este": tachos_este,
+    "puntos_gasolineras": puntos_gasolineras
 }
 
 with open('datos_extra.json', 'w') as f:
