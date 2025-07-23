@@ -21,7 +21,8 @@ tachos_zona = datos["tachos_este"] if zona == "este" else datos["tachos_oeste"]
 tachos_actuales_idx = [nodo_a_indice[n] for n in tachos_zona]
 # === Simular demandas en kg ===
 random.seed(42)
-demandas = {nodo_a_indice[n]: random.randint(300, 800) for n in tachos_zona}
+demandas = {nodo_a_indice[n]: 400 for n in tachos_zona}
+#demandas = {nodo_a_indice[n]: random.randint(300, 800) for n in tachos_zona}
 
 # === Crear instancia de TabuSearch ===
 ts = TabuSearch(
@@ -40,13 +41,14 @@ ts = TabuSearch(
     zona=zona
 )
 
-# === Generar solución inicial válida ===
-solucion_inicial = ts.generar_solucion_inicial()
+# === Ejecutar búsqueda tabú ===
+print("\n🔍 Iniciando búsqueda Tabú...\n")
+ts.ejecutar_busqueda(max_iter=50)
 
-# === Guardar la solución inicial en un archivo JSON ===
-with open("data/soluciones/solucion_0.json", "w") as f:
-    json.dump(solucion_inicial, f, indent=2)
+# === Mostrar mejor solución encontrada ===
+print("\n✅ Mejor solución encontrada:")
+mostrar_rutas(ts, ts.mejor_solucion)
 
-
-# === Mostrar la solución con detalle ===
-mostrar_rutas(ts, solucion_inicial)
+# === Guardar mejor solución ===
+with open("data/soluciones/mejor_solucion.json", "w") as f:
+    json.dump(ts.mejor_solucion, f, indent=2)
