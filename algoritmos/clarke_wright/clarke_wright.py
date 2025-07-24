@@ -61,20 +61,20 @@ def optimizar_rutas_distribuidas(rutas_brutas, matriz, indice_a_nodo, centro_idx
                     print(f"⚠️ Camión {i+1} omitió salto inválido: {origen} → {destino} (distancia = inf)")
                     continue
 
-                dist_km = distancia_km(matriz[origen][destino])
+                dist_km = matriz[origen][destino]
 
                 if dist_km > combustible:
                     gas = buscar_gasolinera(origen, gasolineras_idx, matriz)
-                    distancia_total += distancia_km(matriz[origen][gas])
+                    distancia_total += (matriz[origen][gas])
                     ruta_real.append(gas)
                     combustible = AUTONOMIA_KM
                     origen = gas
-                    dist_km = distancia_km(matriz[origen][destino])
+                    dist_km = (matriz[origen][destino])
 
                 if carga + PESO_TACO > CAPACIDAD_CAMION:
-                    distancia_total += distancia_km(matriz[origen][vertedero_idx])
+                    distancia_total += (matriz[origen][vertedero_idx])
                     ruta_real.append(vertedero_idx)
-                    combustible -= distancia_km(matriz[origen][vertedero_idx])
+                    combustible -= (matriz[origen][vertedero_idx])
                     carga = 0
                     origen = vertedero_idx
 
@@ -87,14 +87,14 @@ def optimizar_rutas_distribuidas(rutas_brutas, matriz, indice_a_nodo, centro_idx
 
         if ruta_real and ruta_real[-1] != vertedero_idx:
             if np.isfinite(matriz[origen][vertedero_idx]):
-                distancia_total += distancia_km(matriz[origen][vertedero_idx])
+                distancia_total += (matriz[origen][vertedero_idx])
                 ruta_real.append(vertedero_idx)
                 origen = vertedero_idx
             else:
                 print(f"⚠️ Camión {i+1} no pudo ir al vertedero desde {origen} (sin conexión)")
 
         if np.isfinite(matriz[origen][centro_idx]):
-            distancia_total += distancia_km(matriz[origen][centro_idx])
+            distancia_total += (matriz[origen][centro_idx])
             ruta_real.append(centro_idx)
         else:
             print(f"⚠️ Camión {i+1} no pudo regresar al centro desde {origen} (sin conexión)")
@@ -102,7 +102,7 @@ def optimizar_rutas_distribuidas(rutas_brutas, matriz, indice_a_nodo, centro_idx
         rutas_finales.append({
             "camion": i + 1,
             "ruta": [indice_a_nodo[idx] for idx in [centro_idx] + ruta_real],
-            "distancia_total_km": round(distancia_total, 2),
+            "distancia_total_m": round(distancia_total, 2),
             "tachos_recolectados": list(tachos_recolectados_global)
         })
 

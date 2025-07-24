@@ -15,7 +15,7 @@ if __name__ == "__main__":
         print("Sector inválido. Usa 'este' o 'oeste'.")
         exit(1)
 
-    # Cargar archivos
+    # Cargar datos y matriz
     datos = cargar_datos_extra()
     matriz = cargar_matriz()
     nodo_a_indice, indice_a_nodo = cargar_indices()
@@ -67,8 +67,8 @@ if __name__ == "__main__":
     for ruta in rutas_finales:
         print(f"  🚛 Camión {ruta['camion']}:")
         print(f"  📍 Ruta (nodos originales): {ruta['ruta']}")
-        print(f"  🛣️ Distancia recorrida: {ruta['distancia_total_km']} km\n")
-        distancia_total += ruta['distancia_total_km']
+        print(f"  🛣️ Distancia recorrida: {ruta['distancia_total_m']} km\n")
+        distancia_total += ruta['distancia_total_m']
         tachos_recolectados_global.update(ruta["tachos_recolectados"])
         rutas_output.append([int(n) for n in ruta['ruta']])
 
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     print(f"  ✅ Tachos recolectados: {len(tachos_recolectados_global)} / {total_tachos_originales}")
     print(f"  ⚠️ (De los {total_tachos_originales}, solo {len(tachos_idx)} eran accesibles desde el centro)")
     print(f"  📈 Cobertura real: {len(tachos_recolectados_global)/total_tachos_originales*100:.2f}%")
-    print(f"  🛣️ Distancia total: {round(distancia_total, 2)} km")
-    print(f"  📏 Promedio por camión: {round(distancia_total / 3, 2)} km")
+    print(f"  🛣️ Distancia total: {round(distancia_total, 2)} m")
+    print(f"  📏 Promedio por camión: {round(distancia_total / 3, 2)} m")
 
     # Guardar JSON de resultados
     resultado_json = {
