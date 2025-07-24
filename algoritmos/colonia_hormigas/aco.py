@@ -408,22 +408,12 @@ def ejecutar_aco(
             pasada_colaborativa += 1
             tachos_restantes = entorno.obtener_tachos_disponibles(tachos_visitados_sector)
 
-        for i, camion in enumerate(camiones):
-            if camion.kg_basura > 0:
-                if not mover_camion_seguro(camion, entorno, entorno.vertedero, "vertedero", "FINAL OBLIGATORIO: Vaciar toda la carga"):
-                    camion.kg_basura = 0
-            
-            gasolinera_cercana = min(
-                entorno.gasolineras,
-                key=lambda g: entorno.distancia(camion.pos, g)
-            )
-
+        # Verificar si se debe terminar la iteración
         total_tachos_recolectados = len(tachos_visitados_sector)
         eficiencia = (total_tachos_recolectados / len(entorno.tachos)) * 100
+        tachos_faltantes = len(entorno.tachos) - total_tachos_recolectados
         
-        if eficiencia >= 100:
-            break
-
+        # Actualizar feromonas antes de verificar eficiencia
         for camion in camiones:
             for j in range(len(camion.ruta) - 1):
                 origen, destino = camion.ruta[j], camion.ruta[j + 1]
@@ -432,5 +422,143 @@ def ejecutar_aco(
                 feromonas[(origen, destino)] *= (1 - rho)
                 if entorno.tipo_nodo(destino) == "tacho":
                     feromonas[(origen, destino)] += 1.0
+        
+        # Ser más persistente si quedan pocos tachos (menos de 10)
+        if eficiencia >= 100:
+            break
+        elif tachos_faltantes <= 10 and it < iteraciones - 20:
+            # Si quedan pocos tachos, no terminar hasta intentar al menos 20 iteraciones más
+            continue
+        elif eficiencia >= 95 and it < iteraciones - 10:
+            # Si tenemos 95% o más, intentar al menos 10 iteraciones más
+            continue
+
+    # FASE FINAL DE RECUPERACIÓN DE TACHOS FALTANTES
+    tachos_finales_faltantes = entorno.obtener_tachos_disponibles(tachos_visitados_sector)
+    if tachos_finales_faltantes:
+        print(f"🎯 FASE FINAL: Intentando recuperar {len(tachos_finales_faltantes)} tachos faltantes...")
+        
+        for camion in camiones:
+            if not tachos_finales_faltantes:
+                break
+                
+            # Vaciar camión si tiene carga para maximizar capacidad
+            if camion.kg_basura > 0:
+                mover_camion_seguro(camion, entorno, entorno.vertedero, "vertedero", "Vaciar para fase final")
+            
+            # Ir al centro para comenzar fase final
+            if camion.pos != entorno.centro:
+                mover_camion_seguro(camion, entorno, entorno.centro, "centro", "Ir al centro para fase final")
+            
+            # Recargar combustible
+            gasolinera_cercana = min(entorno.gasolineras, key=lambda g: entorno.distancia(camion.pos, g))
+            mover_camion_seguro(camion, entorno, gasolinera_cercana, "gasolinera", "Recargar para fase final")
+            
+            # Intentar alcanzar tachos faltantes uno por uno
+            intentos_tacho = 0
+            while tachos_finales_faltantes and intentos_tacho < 5:
+                intentos_tacho += 1
+                tacho_objetivo = min(tachos_finales_faltantes, 
+                                   key=lambda t: entorno.distancia(camion.pos, t))
+                
+                if mover_camion_seguro(camion, entorno, tacho_objetivo, "tacho", f"FASE FINAL: Tacho {str(tacho_objetivo)[:6]}"):
+                    tachos_finales_faltantes.remove(tacho_objetivo)
+                    tachos_visitados_sector.add(tacho_objetivo)
+                    print(f"  ✅ Tacho {str(tacho_objetivo)[:6]} recuperado en fase final")
+                else:
+                    # Si no puede llegar, recargar e intentar
+                    if necesita_abastecerse(camion, entorno):
+                        gasolinera_cercana = min(entorno.gasolineras, 
+                                               key=lambda g: entorno.distancia(camion.pos, g))
+                        if mover_camion_seguro(camion, entorno, gasolinera_cercana, "gasolinera", "Recargar para continuar fase final"):
+                            continue
+                    break
+
+    # VACIADO FINAL OBLIGATORIO - FUERA DEL BUCLE DE ITERACIONES
+    # Este paso se ejecuta SIEMPRE al final, sin importar cómo terminó el algoritmo
+    print("🔄 Ejecutando vaciado final obligatorio...")
+    for i, camion in enumerate(camiones):
+        # IMPORTANTE: Si el camión visitó tachos, DEBE ir al vertedero
+        # incluso si ya vació su carga durante las operaciones
+        visito_tachos = len(camion.tachos_visitados) > 0
+        tiene_carga = camion.kg_basura > 0
+        
+        if tiene_carga or visito_tachos:
+            if tiene_carga:
+                print(f"  🚛 Camión {i+1}: Vaciando {camion.kg_basura}kg en vertedero")
+            else:
+                print(f"  🚛 Camión {i+1}: Visitó {len(camion.tachos_visitados)} tachos, verificando descarga en vertedero")
+            
+            # Verificar si puede llegar al vertedero
+            distancia_vertedero = entorno.distancia(camion.pos, entorno.vertedero)
+            
+            if camion.km_restantes >= distancia_vertedero:
+                # Puede llegar directamente
+                if not mover_camion_seguro(camion, entorno, entorno.vertedero, "vertedero", "FINAL OBLIGATORIO: Verificar/Vaciar carga"):
+                    print(f"  ⚠️ Error inesperado al mover camión {i+1} al vertedero, forzando vaciado")
+                    # IMPORTANTE: Agregar vertedero a la ruta incluso si hay error
+                    if entorno.vertedero not in camion.ruta:
+                        camion.ruta.append(entorno.vertedero)
+                    camion.kg_basura = 0
+                else:
+                    print(f"  ✅ Camión {i+1}: Verificación/vaciado completado exitosamente")
+            else:
+                # Necesita ir a gasolinera primero
+                print(f"  ⛽ Camión {i+1}: Necesita combustible, yendo a gasolinera primero")
+                gasolinera_cercana = min(
+                    entorno.gasolineras,
+                    key=lambda g: entorno.distancia(camion.pos, g)
+                )
+                
+                if mover_camion_seguro(camion, entorno, gasolinera_cercana, "gasolinera", "Recargar para ir al vertedero"):
+                    # Ahora intentar ir al vertedero
+                    if not mover_camion_seguro(camion, entorno, entorno.vertedero, "vertedero", "FINAL OBLIGATORIO: Verificar/Vaciar carga"):
+                        print(f"  ⚠️ Error al llegar al vertedero después de recargar, forzando vaciado")
+                        # IMPORTANTE: Agregar vertedero a la ruta incluso si hay error
+                        if entorno.vertedero not in camion.ruta:
+                            camion.ruta.append(entorno.vertedero)
+                        camion.kg_basura = 0
+                    else:
+                        print(f"  ✅ Camión {i+1}: Verificación/vaciado completado después de recargar")
+                else:
+                    print(f"  ⚠️ Camión {i+1}: No puede llegar ni a gasolinera, forzando vaciado")
+                    # IMPORTANTE: Agregar vertedero a la ruta incluso si hay error
+                    if entorno.vertedero not in camion.ruta:
+                        camion.ruta.append(entorno.vertedero)
+                    camion.kg_basura = 0
+        else:
+            print(f"  ✅ Camión {i+1}: No visitó tachos, no necesita ir al vertedero")
+    
+    # REGRESO FINAL AL CENTRO (OPCIONAL - para completar el ciclo)
+    print("🏠 Regresando todos los camiones al centro...")
+    for i, camion in enumerate(camiones):
+        if camion.pos != entorno.centro:
+            print(f"  🚛 Camión {i+1}: Regresando al centro")
+            
+            # Verificar si puede llegar al centro
+            distancia_centro = entorno.distancia(camion.pos, entorno.centro)
+            
+            if camion.km_restantes >= distancia_centro:
+                if not mover_camion_seguro(camion, entorno, entorno.centro, "centro", "REGRESO FINAL: Volver al centro"):
+                    print(f"  ⚠️ Error inesperado al regresar camión {i+1} al centro")
+                else:
+                    print(f"  ✅ Camión {i+1}: De vuelta en el centro")
+            else:
+                # Intentar ir a gasolinera primero
+                print(f"  ⛽ Camión {i+1}: Necesita combustible para regresar")
+                gasolinera_cercana = min(
+                    entorno.gasolineras,
+                    key=lambda g: entorno.distancia(camion.pos, g)
+                )
+                
+                if mover_camion_seguro(camion, entorno, gasolinera_cercana, "gasolinera", "Recargar para regresar"):
+                    if not mover_camion_seguro(camion, entorno, entorno.centro, "centro", "REGRESO FINAL: Volver al centro"):
+                        print(f"  ⚠️ Error al regresar después de recargar")
+                    else:
+                        print(f"  ✅ Camión {i+1}: De vuelta en el centro después de recargar")
+                else:
+                    print(f"  ⚠️ Camión {i+1}: No puede regresar por combustible insuficiente")
+        else:
+            print(f"  ✅ Camión {i+1}: Ya está en el centro")
 
     return camiones
